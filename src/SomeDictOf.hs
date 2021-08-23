@@ -94,7 +94,7 @@ withSomeDictOf (SomeDictOf p) k =
 --
 -- @
 -- provideMempty ;: SomeDictOf Proxy Monoid -> SomeDictOf Identity Monoid
--- provideMempty = mapSomeDictOf (\proxy -> Identity mempty)
+-- provideMempty = mapSomeDictOf (\\proxy -> Identity mempty)
 -- @
 --
 -- @since 0.1.0.0
@@ -117,7 +117,7 @@ mapSomeDictOf f (SomeDictOf fa) =
 -- forgotten = forgetContents show
 --
 -- main = do
---     forM forgotten $ \(SomeDictOf Proxy) -> do
+--     forM forgotten $ \\(SomeDictOf Proxy) -> do
 --          print 10
 -- @
 --
