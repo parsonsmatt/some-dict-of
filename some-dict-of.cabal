@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           some-dict-of
-version:        0.1.0.1
+version:        0.1.0.2
 synopsis:       Carry evidence of constraints around
 description:    Please see the README on GitHub at <https://github.com/parsonsmatt/some-dict-of#readme>
 category:       Constraints

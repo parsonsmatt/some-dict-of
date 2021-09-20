@@ -26,19 +26,46 @@ import Data.Proxy
 --
 -- The alias @'SomeDict' clazz@ uses 'Proxy' for the datatype index. This means
 -- that the wrapper is a @'Proxy' :: 'Proxy' a@, and you know that the type
--- @a@ has an instance of @clazz a@. We can construct a value
+-- @a@ has an instance of @clazz a@. The 'SomeDictOf' type does not actually
+-- *carry* any values of this type.
+--
+-- That is not to say that we *necessarily* won't have a value - consider
+-- @'SomeDictOf' 'Identity'@, which actually does hold a value. We can use this
+-- to make an existential 'Show' wrapper.
 --
 -- @
--- showSomeDict :: SomeDictOf Identity Show
+-- showSomeDict :: 'SomeDictOf' 'Identity' 'Show'
 -- showSomeDict =
---     SomeDict (Identity 3 :: Identity Int)
+--     'SomeDictOf' ('Identity' 3 :: 'Identity' 'Int')
 -- @
 --
--- A value of @'SomeDict' 'Show'@ contains 'Proxy' value. When you pattern
--- match on the 'SomeDict', you know that the given @'Proxy' :: 'Proxy' a@
--- has an instance of 'Show'.
+-- We can happily have a @['SomeDictOf' 'Identity' 'Show']@, or a @Map String
+-- ('SomeDictOf' 'Identity' 'Show)@, or similar.
 --
--- For the most part, this isn't useful,
+-- Constructing them is easy enough. Consuming them can be a bit trickier. Let's
+-- look at a @'SomeDict' 'Monoid'@.
+--
+-- @
+-- monoid :: 'SomeDictOf' 'Proxy' 'Monoid'
+-- monoid =
+--     'SomeDictOf' ('Proxy' :: 'Proxy' 'Data.Text.Text')
+-- @
+--
+-- All we know about this is that it's carrying a datatype with a 'Monoid'
+-- instance. We'll case-match on the value, and then in the case branch, we'll
+-- have evidence that (whatever the underlying type is) that it has a 'Monoid'
+-- instance.
+--
+-- We'll repackage the value, but instead of using 'Proxy', we'll stuff 'mempty'
+-- into 'Identity'.
+--
+-- @
+-- useMonoid :: 'SomeDictOf' 'Proxy' 'Monoid' -> 'SomeDictOf' 'Identity' 'Monoid'
+-- useMonoid someDictOfProxy =
+--     case someDictOfProxy of
+--         SomeDictOf (Proxy :: Proxy a) ->
+--             SomeDictOf (Identity (mempty :: a))
+-- @
 --
 -- @since 0.1.0.0
 data SomeDictOf (f :: k -> Type) (c :: k -> Constraint) where
@@ -48,6 +75,40 @@ data SomeDictOf (f :: k -> Type) (c :: k -> Constraint) where
 -- then you can use this type. By carrying a 'Proxy' instead of a real
 -- value, we can summon these up whenever we have an instance of the type in
 -- question.
+--
+-- This is useful when you have a type class that specifies some *static*
+-- behavior that is useful, or a type class that can provide means of
+-- creating/retrieving/working with data. Consider the @PersistEntity@ class
+-- from the @persistent@ database library. An instance of that class can be used
+-- to get the @EntityDef@ that describes how the type interacts with the
+-- database, or you can even @selectList@ and grab all entities out of the
+-- database.
+--
+-- @
+-- someEntity :: 'SomeDict' PersistEntity
+-- someEntity = someDict \@User
+-- @
+--
+-- With this value, we can now extract the @EntityDef@:
+--
+-- @
+-- someEntityDef :: EntityDef
+-- someEntityDef =
+--     case someEntity of
+--         SomeDictOf (Proxy :: Proxy a) ->
+--             entityDef (Proxy :: Proxy a)
+-- @
+--
+-- We can also load all the rows out of the database.
+--
+-- @
+-- verifyRowsCanLoad :: SqlPersistT IO ()
+-- verifyRowsCanLoad =
+--     case someEntity of
+--         SomeDictOf (Proxy :: Proxy a) -> do
+--             rows <- selectList [] [] :: SqlPersistT IO [Entity a]
+--             mapM_ (print . entityKey) rows
+-- @
 --
 -- @since 0.1.0.0
 type SomeDict = SomeDictOf Proxy
@@ -59,10 +120,10 @@ type SomeDict = SomeDictOf Proxy
 --
 -- @
 -- showDict :: SomeDict Show
--- showDict = someDict @Int
+-- showDict = someDict \@Int
 --
 -- entityDict :: SomeDict PersistEntity
--- entityDict = someDict @User
+-- entityDict = someDict \@User
 -- @
 --
 -- @since 0.1.0.0
